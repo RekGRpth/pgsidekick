@@ -45,6 +45,7 @@ struct opts {
   char *host;
   char *port;
   char *username;
+  char *conninfo;
   bool no_password;
   bool show_context;
   bool print0;
@@ -69,6 +70,10 @@ int main(int argc, char *argv[])
   PGnotify *notify;
 
   parse_options(argc, argv, &options);
+
+  if (options.conninfo) {
+    db = PQconnectdb(options.conninfo);
+  } else {
 
   if (options.username == NULL) {
     password_prompt = strdup("Password: ");
@@ -118,6 +123,8 @@ int main(int argc, char *argv[])
   free(password);
   free(password_prompt);
 
+  }
+
   if (PQstatus(db) == CONNECTION_BAD) {
     fprintf(stderr, "%s: %s", progname, PQerrorMessage(db));
     PQfinish(db);
@@ -133,7 +140,7 @@ int main(int argc, char *argv[])
       PQfinish(db);
       exit(EXIT_FAILURE);
     }
-    
+
     char *listen = malloc(strlen(id) + 7);
     sprintf(listen, "listen %s", id);
     PQfreemem(id);
@@ -204,6 +211,7 @@ static void parse_options(int argc, char *argv[], struct opts * options)
 {
   static struct option long_options[] =
   {
+      {"conninfo", required_argument, NULL, 'i'},
       {"dbname", required_argument, NULL, 'd'},
       {"host", required_argument, NULL, 'h'},
       {"listen", required_argument, NULL, 'l'},
@@ -223,9 +231,12 @@ static void parse_options(int argc, char *argv[], struct opts * options)
 
   memset(options, 0, sizeof *options);
 
-  while ((c = getopt_long(argc, argv, "d:h:l:p:qU:HVw0?", long_options, &optindex)) != -1) {
+  while ((c = getopt_long(argc, argv, "+i:d:h:l:p:qU:HVw0?", long_options, &optindex)) != -1) {
     switch (c)
     {
+      case 'i':
+        options->conninfo = optarg;
+        break;
       case 'd':
         options->dbname = optarg;
         break;
@@ -286,6 +297,7 @@ static void usage()
   printf(_("      --version            output version information, then exit\n"));
 
   printf(_("\nConnection options:\n"));
+  printf(_("  -u, --conninfo=CONNINFO  database conninfo\n"));
   printf(_("  -h, --host=HOSTNAME      database server host or socket directory\n"));
   printf(_("  -p, --port=PORT          database server port\n"));
   printf(_("  -U, --username=USERNAME  database user name\n"));
